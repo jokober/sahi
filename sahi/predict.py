@@ -707,7 +707,8 @@ def predict(
             )
 
     if return_dict:
-        return {"export_dir": save_dir}
+        return {"export_dir": save_dir,
+                'durations_in_seconds': durations_in_seconds}
 
 
 def predict_fiftyone(
