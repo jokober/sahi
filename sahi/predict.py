@@ -50,17 +50,16 @@ POSTPROCESS_NAME_TO_CLASS = {
 
 LOW_MODEL_CONFIDENCE = 0.1
 
-
 logger = logging.getLogger(__name__)
 
 
 def get_prediction(
-    image,
-    detection_model,
-    shift_amount: list = [0, 0],
-    full_shape=None,
-    postprocess: Optional[PostprocessPredictions] = None,
-    verbose: int = 0,
+        image,
+        detection_model,
+        shift_amount: list = [0, 0],
+        full_shape=None,
+        postprocess: Optional[PostprocessPredictions] = None,
+        verbose: int = 0,
 ) -> PredictionResult:
     """
     Function for performing prediction for given image using given detection_model.
@@ -92,7 +91,7 @@ def get_prediction(
     time_start = time.time()
     detection_model.perform_inference(np.ascontiguousarray(image_as_pil))
     time_end = time.time() - time_start
-    durations_in_seconds['prediction']['total'] = time_end
+    durations_in_seconds['prediction'] = time_end
 
     # process prediction
     time_start = time.time()
@@ -113,7 +112,7 @@ def get_prediction(
     if verbose == 1:
         print(
             "Prediction performed in",
-            durations_in_seconds['prediction']['total'],
+            durations_in_seconds['prediction'],
             "seconds.",
         )
 
@@ -123,20 +122,20 @@ def get_prediction(
 
 
 def get_sliced_prediction(
-    image,
-    detection_model=None,
-    slice_height: int = None,
-    slice_width: int = None,
-    overlap_height_ratio: float = 0.2,
-    overlap_width_ratio: float = 0.2,
-    perform_standard_pred: bool = True,
-    postprocess_type: str = "GREEDYNMM",
-    postprocess_match_metric: str = "IOS",
-    postprocess_match_threshold: float = 0.5,
-    postprocess_class_agnostic: bool = False,
-    verbose: int = 1,
-    merge_buffer_length: int = None,
-    auto_slice_resolution: bool = True,
+        image,
+        detection_model=None,
+        slice_height: int = None,
+        slice_width: int = None,
+        overlap_height_ratio: float = 0.2,
+        overlap_width_ratio: float = 0.2,
+        perform_standard_pred: bool = True,
+        postprocess_type: str = "GREEDYNMM",
+        postprocess_match_metric: str = "IOS",
+        postprocess_match_threshold: float = 0.5,
+        postprocess_class_agnostic: bool = False,
+        verbose: int = 1,
+        merge_buffer_length: int = None,
+        auto_slice_resolution: bool = True,
 ) -> PredictionResult:
     """
     Function for slice image + get predicion for each slice + combine predictions in full image.
@@ -272,7 +271,7 @@ def get_sliced_prediction(
         object_prediction_list = postprocess(object_prediction_list)
 
     time_end = time.time() - time_start
-    durations_in_seconds['prediction']['total'] = time_end
+    durations_in_seconds['prediction'] = time_end
 
     if verbose == 2:
         print(
@@ -282,7 +281,7 @@ def get_sliced_prediction(
         )
         print(
             "Prediction performed in",
-            durations_in_seconds['prediction']['total'],
+            durations_in_seconds['prediction'],
             "seconds.",
         )
 
@@ -329,43 +328,43 @@ def agg_prediction(result: PredictionResult, thresh):
 
 
 def predict(
-    detection_model: DetectionModel = None,
-    model_type: str = "mmdet",
-    model_path: str = None,
-    model_config_path: str = None,
-    model_confidence_threshold: float = 0.25,
-    model_device: str = None,
-    model_category_mapping: dict = None,
-    model_category_remapping: dict = None,
-    source: str = None,
-    no_standard_prediction: bool = False,
-    no_sliced_prediction: bool = False,
-    image_size: int = None,
-    slice_height: int = 512,
-    slice_width: int = 512,
-    overlap_height_ratio: float = 0.2,
-    overlap_width_ratio: float = 0.2,
-    postprocess_type: str = "GREEDYNMM",
-    postprocess_match_metric: str = "IOS",
-    postprocess_match_threshold: float = 0.5,
-    postprocess_class_agnostic: bool = False,
-    novisual: bool = False,
-    view_video: bool = False,
-    frame_skip_interval: int = 0,
-    export_pickle: bool = False,
-    export_crop: bool = False,
-    dataset_json_path: bool = None,
-    project: str = "runs/predict",
-    name: str = "exp",
-    visual_bbox_thickness: int = None,
-    visual_text_size: float = None,
-    visual_text_thickness: int = None,
-    visual_hide_labels: bool = False,
-    visual_hide_conf: bool = False,
-    visual_export_format: str = "png",
-    verbose: int = 1,
-    return_dict: bool = False,
-    force_postprocess_type: bool = False,
+        detection_model: DetectionModel = None,
+        model_type: str = "mmdet",
+        model_path: str = None,
+        model_config_path: str = None,
+        model_confidence_threshold: float = 0.25,
+        model_device: str = None,
+        model_category_mapping: dict = None,
+        model_category_remapping: dict = None,
+        source: str = None,
+        no_standard_prediction: bool = False,
+        no_sliced_prediction: bool = False,
+        image_size: int = None,
+        slice_height: int = 512,
+        slice_width: int = 512,
+        overlap_height_ratio: float = 0.2,
+        overlap_width_ratio: float = 0.2,
+        postprocess_type: str = "GREEDYNMM",
+        postprocess_match_metric: str = "IOS",
+        postprocess_match_threshold: float = 0.5,
+        postprocess_class_agnostic: bool = False,
+        novisual: bool = False,
+        view_video: bool = False,
+        frame_skip_interval: int = 0,
+        export_pickle: bool = False,
+        export_crop: bool = False,
+        dataset_json_path: bool = None,
+        project: str = "runs/predict",
+        name: str = "exp",
+        visual_bbox_thickness: int = None,
+        visual_text_size: float = None,
+        visual_text_thickness: int = None,
+        visual_hide_labels: bool = False,
+        visual_hide_conf: bool = False,
+        visual_export_format: str = "png",
+        verbose: int = 1,
+        return_dict: bool = False,
+        force_postprocess_type: bool = False,
 ):
     """
     Performs prediction for all present images in given folder.
@@ -518,12 +517,15 @@ def predict(
     durations_in_seconds["model_load"] = time_end
 
     # iterate over source images
-    durations_in_seconds['prediction']['total'] = 0
-    durations_in_seconds["slice"] = 0
+    durations_in_seconds.update({'prediction': {
+        'total': 0,
+        'fps': 0,
+    },
+        'slice': 0})
 
     input_type_str = "video frames" if source_is_video else "images"
     for ind, image_path in enumerate(
-        tqdm(image_iterator, f"Performing inference on {input_type_str}", total=num_frames)
+            tqdm(image_iterator, f"Performing inference on {input_type_str}", total=num_frames)
     ):
         # get filename
         if source_is_video:
@@ -571,11 +573,11 @@ def predict(
             )
             object_prediction_list = prediction_result.object_prediction_list
 
-        durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction']['total']
-        # Show prediction time
+        durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction']     # Show prediction time
         if verbose:
             tqdm.write(
-                "Prediction time is: {:.2f} ms".format(prediction_result.durations_in_seconds['prediction']['total'] * 1000)
+                "Prediction time is: {:.2f} ms".format(
+                    prediction_result.durations_in_seconds['prediction'] * 1000)
             )
 
         if dataset_json_path:
@@ -714,27 +716,27 @@ def predict(
 
 
 def predict_fiftyone(
-    model_type: str = "mmdet",
-    model_path: str = None,
-    model_config_path: str = None,
-    model_confidence_threshold: float = 0.25,
-    model_device: str = None,
-    model_category_mapping: dict = None,
-    model_category_remapping: dict = None,
-    dataset_json_path: str = None,
-    image_dir: str = None,
-    no_standard_prediction: bool = False,
-    no_sliced_prediction: bool = False,
-    image_size: int = None,
-    slice_height: int = 256,
-    slice_width: int = 256,
-    overlap_height_ratio: float = 0.2,
-    overlap_width_ratio: float = 0.2,
-    postprocess_type: str = "GREEDYNMM",
-    postprocess_match_metric: str = "IOS",
-    postprocess_match_threshold: float = 0.5,
-    postprocess_class_agnostic: bool = False,
-    verbose: int = 1,
+        model_type: str = "mmdet",
+        model_path: str = None,
+        model_config_path: str = None,
+        model_confidence_threshold: float = 0.25,
+        model_device: str = None,
+        model_category_mapping: dict = None,
+        model_category_remapping: dict = None,
+        dataset_json_path: str = None,
+        image_dir: str = None,
+        no_standard_prediction: bool = False,
+        no_sliced_prediction: bool = False,
+        image_size: int = None,
+        slice_height: int = 256,
+        slice_width: int = 256,
+        overlap_height_ratio: float = 0.2,
+        overlap_width_ratio: float = 0.2,
+        postprocess_type: str = "GREEDYNMM",
+        postprocess_match_metric: str = "IOS",
+        postprocess_match_threshold: float = 0.5,
+        postprocess_class_agnostic: bool = False,
+        verbose: int = 1,
 ):
     """
     Performs prediction for all present images in given folder.
@@ -857,7 +859,8 @@ def predict_fiftyone(
                     postprocess=None,
                     verbose=0,
                 )
-                durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction']['total']
+                durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction'][
+                    'total']
 
             # Save predictions to dataset
             sample[model_type] = fo.Detections(detections=prediction_result.to_fiftyone_detections())
