@@ -92,7 +92,7 @@ def get_prediction(
     time_start = time.time()
     detection_model.perform_inference(np.ascontiguousarray(image_as_pil))
     time_end = time.time() - time_start
-    durations_in_seconds["prediction"] = time_end
+    durations_in_seconds['prediction']['total'] = time_end
 
     # process prediction
     time_start = time.time()
@@ -113,7 +113,7 @@ def get_prediction(
     if verbose == 1:
         print(
             "Prediction performed in",
-            durations_in_seconds["prediction"],
+            durations_in_seconds['prediction']['total'],
             "seconds.",
         )
 
@@ -272,7 +272,7 @@ def get_sliced_prediction(
         object_prediction_list = postprocess(object_prediction_list)
 
     time_end = time.time() - time_start
-    durations_in_seconds["prediction"] = time_end
+    durations_in_seconds['prediction']['total'] = time_end
 
     if verbose == 2:
         print(
@@ -282,7 +282,7 @@ def get_sliced_prediction(
         )
         print(
             "Prediction performed in",
-            durations_in_seconds["prediction"],
+            durations_in_seconds['prediction']['total'],
             "seconds.",
         )
 
@@ -518,7 +518,7 @@ def predict(
     durations_in_seconds["model_load"] = time_end
 
     # iterate over source images
-    durations_in_seconds["prediction"] = 0
+    durations_in_seconds['prediction']['total'] = 0
     durations_in_seconds["slice"] = 0
 
     input_type_str = "video frames" if source_is_video else "images"
@@ -571,11 +571,11 @@ def predict(
             )
             object_prediction_list = prediction_result.object_prediction_list
 
-        durations_in_seconds["prediction"] += prediction_result.durations_in_seconds["prediction"]
+        durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction']['total']
         # Show prediction time
         if verbose:
             tqdm.write(
-                "Prediction time is: {:.2f} ms".format(prediction_result.durations_in_seconds["prediction"] * 1000)
+                "Prediction time is: {:.2f} ms".format(prediction_result.durations_in_seconds['prediction']['total'] * 1000)
             )
 
         if dataset_json_path:
@@ -674,6 +674,8 @@ def predict(
         time_end = time.time() - time_start
         durations_in_seconds["export_files"] = time_end
 
+    durations_in_seconds['prediction']['fps'] = ind / durations_in_seconds['prediction']['total']
+
     # export coco results
     if dataset_json_path:
         save_path = str(save_dir / "result.json")
@@ -696,7 +698,7 @@ def predict(
         )
         print(
             "Prediction performed in",
-            durations_in_seconds["prediction"],
+            durations_in_seconds['prediction']['total'],
             "seconds.",
         )
         if not novisual:
@@ -822,7 +824,7 @@ def predict_fiftyone(
     durations_in_seconds["model_load"] = time_end
 
     # iterate over source images
-    durations_in_seconds["prediction"] = 0
+    durations_in_seconds['prediction']['total'] = 0
     durations_in_seconds["slice"] = 0
     # Add predictions to samples
     with fo.ProgressBar() as pb:
@@ -855,7 +857,7 @@ def predict_fiftyone(
                     postprocess=None,
                     verbose=0,
                 )
-                durations_in_seconds["prediction"] += prediction_result.durations_in_seconds["prediction"]
+                durations_in_seconds['prediction']['total'] += prediction_result.durations_in_seconds['prediction']['total']
 
             # Save predictions to dataset
             sample[model_type] = fo.Detections(detections=prediction_result.to_fiftyone_detections())
@@ -875,7 +877,7 @@ def predict_fiftyone(
         )
         print(
             "Prediction performed in",
-            durations_in_seconds["prediction"],
+            durations_in_seconds['prediction']['total'],
             "seconds.",
         )
 
