@@ -99,7 +99,7 @@ def evaluate_core(
             export_path (str): Path for the exported eval result json.
 
     """
-
+    metric = ["bbox"]
     metrics = metric if isinstance(metric, list) else [metric]
     allowed_metrics = ["bbox", "segm"]
     for metric in metrics:
@@ -366,13 +366,192 @@ def evaluate(
         classwise,
         max_detections,
         iou_thrs,
+        metric_items=[
+            "mAP",
+            "mAP50",
+            "mAP75",
+            "mAP_s",
+            "mAP_m",
+            "mAP_l",
+            "mAP50_s",
+            "mAP50_m",
+            "mAP50_l",
+            "AR_s",
+            "AR_m",
+            "AR_l",
+        ],
         out_dir=out_dir,
         areas=areas,
         COCO=COCO,
         COCOeval=COCOeval,
     )
+
+    result_pycocotools = evaluate_pycocotools(
+        dataset_json_path,
+        result_json_path,
+        type,
+        classwise,
+        max_detections,
+        iou_thrs,
+        out_dir=out_dir,
+        areas=areas,
+        COCO=COCO,
+        COCOeval=COCOeval,
+    )
+    result.update(result_pycocotools)
+
     if return_dict:
         return result
+
+
+def evaluate_pycocotools(
+    dataset_path,
+    result_path,
+    metric: str = "bbox",
+    classwise: bool = False,
+    max_detections: int = 500,
+    iou_thrs=None,
+    metric_items=None,
+    out_dir: str = None,
+    areas: List[int] = [1024, 9216, 10000000000],
+    COCO=None,
+    COCOeval=None,
+):
+    """Evaluation in COCO protocol.
+    Args:
+        dataset_path (str): COCO dataset json path.
+        result_path (str): COCO result json path.
+        metric (str | list[str]): Metrics to be evaluated. Options are
+            'bbox', 'segm', 'proposal'.
+        classwise (bool): Whether to evaluating the AP for each class.
+        max_detections (int): Maximum number of detections to consider for AP
+            calculation.
+            Default: 500
+        iou_thrs (List[float], optional): IoU threshold used for
+            evaluating recalls/mAPs. If set to a list, the average of all
+            IoUs will also be computed. If not specified, [0.50, 0.55,
+            0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95] will be used.
+            Default: None.
+        metric_items (list[str] | str, optional): Metric items that will
+            be returned. If not specified, ``['AR@10', 'AR@100',
+            'AR@500', 'AR_s@500', 'AR_m@500', 'AR_l@500' ]`` will be
+            used when ``metric=='proposal'``, ``['mAP', 'mAP50', 'mAP75',
+            'mAP_s', 'mAP_m', 'mAP_l', 'mAP50_s', 'mAP50_m', 'mAP50_l']``
+            will be used when ``metric=='bbox' or metric=='segm'``.
+        out_dir (str): Directory to save evaluation result json.
+        areas (List[int]): area regions for coco evaluation calculations
+    Returns:
+        dict:
+            eval_results (dict[str, float]): COCO style evaluation metric.
+            export_path (str): Path for the exported eval result json.
+
+    """
+
+    metrics = metric if isinstance(metric, list) else [metric]
+    # allowed_metrics = ["bbox", "segm"]
+    # for metric in metrics:
+    #    if metric not in allowed_metrics:
+    #        raise KeyError(f"metric {metric} is not supported")
+    if iou_thrs is None:
+        iou_thrs = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
+    if metric_items is not None:
+        if not isinstance(metric_items, list):
+            metric_items = [metric_items]
+    if areas is not None:
+        if len(areas) != 3:
+            raise ValueError("3 integers should be specified as areas, representing 3 area regions")
+    eval_results = OrderedDict()
+    cocoGt = COCO(dataset_path)
+    cat_ids = list(cocoGt.cats.keys())
+    for metric in metrics:
+        msg = f"Evaluating {metric}..."
+        msg = "\n" + msg
+        print(msg)
+
+        iou_type = metric
+        with open(result_path) as json_file:
+            results = json.load(json_file)
+        try:
+            cocoDt = cocoGt.loadRes(results)
+        except IndexError:
+            print("The testing results of the whole dataset is empty.")
+            break
+
+        cocoEval = COCOeval(cocoGt, cocoDt, iou_type)
+        if areas is not None:
+            cocoEval.params.areaRng = [
+                [0 ** 2, areas[2]],
+                [0 ** 2, areas[0]],
+                [areas[0], areas[1]],
+                [areas[1], areas[2]],
+            ]
+        cocoEval.params.catIds = cat_ids
+        # cocoEval.params.maxDets = [max_detections] # Fails as pycocotools can only summarize using the default settings
+        cocoEval.params.iouThrs = (
+            [iou_thrs] if not isinstance(iou_thrs, list) and not isinstance(iou_thrs, np.ndarray) else iou_thrs
+        )
+
+        # mapping of cocoEval.stats
+        coco_metric_names = {
+            "mAP": 0,
+            "mAP50": 1,
+            "mAP75": 2,
+            "mAP_s": 3,
+            "mAP_m": 4,
+            "mAP_l": 5,
+            "AR@1": 6,
+            "AR@10": 7,
+            "AR@100": 8,
+            "AR_s": 9,
+            "AR_m": 10,
+            "AR_l": 11,
+        }
+        if metric_items is not None:
+            for metric_item in metric_items:
+                if metric_item not in coco_metric_names:
+                    raise KeyError(f"metric item {metric_item} is not supported")
+
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+        cocoEval.summarize()
+        # calculate mAP50_s/m/l
+        # mAP = _cocoeval_summarize(cocoEval, ap=1, iouThr=None, areaRng="all", maxDets=max_detections)
+        # mAP50 = _cocoeval_summarize(cocoEval, ap=1, iouThr=0.5, areaRng="all", maxDets=max_detections)
+        # mAP75 = _cocoeval_summarize(cocoEval, ap=1, iouThr=0.75, areaRng="all", maxDets=max_detections)
+        # mAP50_s = _cocoeval_summarize(cocoEval, ap=1, iouThr=0.5, areaRng="small", maxDets=max_detections)
+        # mAP50_m = _cocoeval_summarize(cocoEval, ap=1, iouThr=0.5, areaRng="medium", maxDets=max_detections)
+        # mAP50_l = _cocoeval_summarize(cocoEval, ap=1, iouThr=0.5, areaRng="large", maxDets=max_detections)
+        # mAP_s = _cocoeval_summarize(cocoEval, ap=1, iouThr=None, areaRng="small", maxDets=max_detections)
+        # mAP_m = _cocoeval_summarize(cocoEval, ap=1, iouThr=None, areaRng="medium", maxDets=max_detections)
+        # mAP_l = _cocoeval_summarize(cocoEval, ap=1, iouThr=None, areaRng="large", maxDets=max_detections)
+        # AR_s = _cocoeval_summarize(cocoEval, ap=0, iouThr=None, areaRng="small", maxDets=max_detections)
+        # AR_m = _cocoeval_summarize(cocoEval, ap=0, iouThr=None, areaRng="medium", maxDets=max_detections)
+        # AR_l = _cocoeval_summarize(cocoEval, ap=0, iouThr=None, areaRng="large", maxDets=max_detections)
+        # cocoEval.stats = np.append(
+        #    [mAP, mAP75, mAP50, mAP_s, mAP_m, mAP_l, mAP50_s, mAP50_m, mAP50_l, AR_s, AR_m, AR_l], 0
+        # )
+
+        for metric_item in coco_metric_names:
+            key = f"{metric}_{metric_item}"
+            val = float(f"{cocoEval.stats[coco_metric_names[metric_item]]:.3f}")
+            eval_results[key] = val
+        ap = cocoEval.stats
+        eval_results[f"{metric}_mAP_copypaste"] = (
+            f"{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} "
+            f"{ap[4]:.3f} {ap[5]:.3f} {ap[6]:.3f} {ap[7]:.3f} "
+            f"{ap[8]:.3f}"
+        )
+
+    # set save path
+    if not out_dir:
+        out_dir = Path(result_path).parent
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    export_path = str(Path(out_dir) / "eval_plain_pycocotools.json")
+    # export as json
+    with open(export_path, "w", encoding="utf-8") as outfile:
+        json.dump(eval_results, outfile, indent=4, separators=(",", ":"))
+    print(f"COCO evaluation results are successfully exported to {export_path}")
+    return {"eval_results_pycocotools": eval_results, "export_path": export_path}
 
 
 if __name__ == "__main__":

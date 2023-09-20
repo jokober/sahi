@@ -712,7 +712,7 @@ def predict(
 
     if return_dict:
         return {"export_dir": save_dir,
-                'durations_in_seconds': durations_in_seconds}
+                'durations_in_seconds': durations_in_seconds} # ToDo: Could be renamed to prediction_speed
 
 
 def predict_fiftyone(
